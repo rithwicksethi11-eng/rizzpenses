@@ -1,2 +1,0 @@
-# rizzpenses
-Expense Tracker App
