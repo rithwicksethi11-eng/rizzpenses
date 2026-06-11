@@ -116,6 +116,50 @@ async function ghSave(c, data, sha, retried) {
   return j.content.sha;
 }
 
+// ── Apple Pay inbox ───────────────────────────────────────────
+// An iOS Shortcut (Transaction automation) PUTs one small JSON file
+// per tap-to-pay into /inbox in the data repo. On open, the app
+// imports those files as transactions and deletes them.
+async function ghListInbox(c) {
+  const res = await fetch(
+    `https://api.github.com/repos/${c.owner}/${c.repo}/contents/inbox`,
+    { headers: ghHeaders(c) }
+  );
+  if (res.status === 404) return []; // no inbox folder yet — nothing pending
+  if (!res.ok) return [];
+  const files = await res.json();
+  const items = [];
+  for (const f of Array.isArray(files) ? files : []) {
+    if (!f.name.endsWith(".json")) continue;
+    try {
+      const fr = await fetch(f.url, { headers: ghHeaders(c) });
+      const fj = await fr.json();
+      items.push({ obj: JSON.parse(b64decode(fj.content)), path: f.path, sha: f.sha });
+    } catch { /* skip malformed drops */ }
+  }
+  return items;
+}
+
+async function ghDeleteFile(c, path, sha) {
+  await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/contents/${path}`, {
+    method: "DELETE", headers: ghHeaders(c),
+    body: JSON.stringify({ message: "imported to rizzpenses", sha }),
+  });
+}
+
+function inboxToTxn(obj) {
+  const amount = Math.round(parseFloat(String(obj.amount ?? "").replace(/[^0-9.]/g, "")) * 100) / 100;
+  if (!(amount > 0)) return null;
+  const merchant = String(obj.merchant || obj.name || "Apple Pay purchase").trim();
+  let category = "Other";
+  for (const [re, cat] of KEYWORD_CATS) if (re.test(merchant)) { category = cat; break; }
+  const date = /^\d{4}-\d{2}-\d{2}/.test(String(obj.date || "")) ? String(obj.date).slice(0, 10) : todayStr();
+  return {
+    id: uid(), type: "expense", desc: merchant, amount, category, date,
+    vendor: merchant, notes: "via Apple Pay" + (obj.card ? ` · ${obj.card}` : ""), splits: [],
+  };
+}
+
 // ── Smart input: Claude API if key set, regex fallback otherwise ──
 const KEYWORD_CATS = [
   [/dinner|lunch|breakfast|coffee|cafe|caffe|restaurant|food|pizza|ramen|noodle|boba|drinks?/i, "Dining"],
@@ -269,14 +313,29 @@ function Rizzpenses() {
   useEffect(() => {
     if (!configured) return;
     (async () => {
+      const cfg = getCfg();
+      let current = EMPTY;
       try {
-        const { data: d, sha } = await ghLoad(getCfg());
+        const { data: d, sha } = await ghLoad(cfg);
         shaRef.current = sha;
-        if (d) { setData({ txns: d.txns || [], settlements: d.settlements || [] }); latestRef.current = d; }
+        if (d) current = { txns: d.txns || [], settlements: d.settlements || [] };
+        setData(current); latestRef.current = current;
         setLoaded(true);
       } catch {
-        setSaveState("error"); setLoaded(true);
+        setSaveState("error"); setLoaded(true); return;
       }
+      // sweep the Apple Pay inbox
+      try {
+        const inbox = await ghListInbox(cfg);
+        const newTxns = inbox.map((f) => inboxToTxn(f.obj)).filter(Boolean);
+        if (newTxns.length) {
+          const merged = { ...current, txns: [...newTxns, ...current.txns] };
+          shaRef.current = await ghSave(cfg, merged, shaRef.current);
+          setData(merged); latestRef.current = merged;
+          setSmartMsg(`Imported ${newTxns.length} Apple Pay transaction${newTxns.length > 1 ? "s" : ""} 💳`);
+        }
+        for (const f of inbox) await ghDeleteFile(cfg, f.path, f.sha);
+      } catch { /* inbox sweep is best-effort; drops stay for next open */ }
     })();
   }, [configured]);
 
