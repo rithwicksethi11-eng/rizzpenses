@@ -585,6 +585,7 @@ function Transactions({ feed, onDelete, onEdit }) {
     let r = feed;
     if (kind === "expense") r = r.filter((t) => t.type === "expense");
     if (kind === "income") r = r.filter((t) => t.type === "income");
+    if (kind === "reimb") r = r.filter((t) => t.type === "settlement" || t.category === "Reimbursement");
     if (q.trim()) {
       const s = q.toLowerCase();
       r = r.filter((t) =>
@@ -608,7 +609,7 @@ function Transactions({ feed, onDelete, onEdit }) {
       <input className="w-full border border-stone-400 bg-white px-3 py-2 text-sm focus:outline-none focus:border-stone-900"
         placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="flex gap-1 text-xs flex-wrap">
-        {[["all", "All"], ["expense", "Expenses"], ["income", "Income"]].map(([id, l]) => (
+        {[["all", "All"], ["expense", "Expenses"], ["income", "Income"], ["reimb", "Reimb."]].map(([id, l]) => (
           <Chip key={id} active={kind === id} onClick={() => setKind(id)}>{l}</Chip>
         ))}
         <span className="flex-1" />
@@ -616,11 +617,19 @@ function Transactions({ feed, onDelete, onEdit }) {
           <Chip key={id} active={group === id} onClick={() => setGroup(id)}>{l}</Chip>
         ))}
       </div>
+      {kind === "reimb" ? (
+        <div className="grid grid-cols-1 gap-2 text-center">
+          <Stat label="Paid back to you" tone="text-green-700"
+            value={fmt(rows.reduce((s, t) => s + t.amount, 0))}
+            sub={`${rows.length} reimbursement${rows.length === 1 ? "" : "s"}`} />
+        </div>
+      ) : (
       <div className="grid grid-cols-3 gap-2 text-center">
         <Stat label="Spent" value={fmt(spent)} tone="text-red-700" />
         <Stat label="Earned" value={fmt(earned)} tone="text-green-700" />
         <Stat label="Net" value={fmt(earned - spent)} tone={earned - spent >= 0 ? "text-green-700" : "text-red-700"} />
       </div>
+      )}
       <p className="text-xs text-stone-500">{rows.length} transactions</p>
 
       {group === "list" ? (
