@@ -10,7 +10,6 @@
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
 <script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>body{background:#f5f5f4}</style>
 </head>
 <body>
@@ -31,15 +30,30 @@
     if (!window.React) missing.push("React");
     if (!window.ReactDOM) missing.push("ReactDOM");
     if (!window.Recharts) missing.push("Recharts");
-    if (!window.Babel) missing.push("Babel");
     if (missing.length) window.onerror("CDN scripts failed to load: " + missing.join(", ") + ". Check your network/adblocker and refresh.");
   });
 </script>
-<script type="text/babel" data-presets="react">
-const { useState, useEffect, useMemo, useRef } = React;
+<script>
 const {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend,
-  PieChart, Pie, Cell, BarChart, Bar, CartesianGrid,
+  useState,
+  useEffect,
+  useMemo,
+  useRef
+} = React;
+const {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  CartesianGrid
 } = Recharts;
 
 // ─────────────────────────────────────────────────────────────
@@ -49,63 +63,88 @@ const {
 // Your token never leaves this browser (localStorage).
 // ─────────────────────────────────────────────────────────────
 
-const CATEGORIES = [
-  "Dining", "Groceries", "Transport", "Entertainment", "Software",
-  "Health", "Housing", "Poker", "Shopping", "Education", "Insurance",
-  "Salary", "Transfer", "Reimbursement", "Other",
-];
+const CATEGORIES = ["Dining", "Groceries", "Transport", "Entertainment", "Software", "Health", "Housing", "Poker", "Shopping", "Education", "Insurance", "Salary", "Transfer", "Reimbursement", "Other"];
 const CAT_COLORS = {
-  Dining: "#f0a202", Groceries: "#2dc97e", Transport: "#5b8def",
-  Entertainment: "#7b61ff", Software: "#44403c", Health: "#e0524d",
-  Housing: "#0e7490", Poker: "#166534", Shopping: "#d97706",
-  Education: "#9333ea", Insurance: "#475569", Salary: "#15803d",
-  Transfer: "#0891b2", Reimbursement: "#65a30d", Other: "#b8a98f",
+  Dining: "#f0a202",
+  Groceries: "#2dc97e",
+  Transport: "#5b8def",
+  Entertainment: "#7b61ff",
+  Software: "#44403c",
+  Health: "#e0524d",
+  Housing: "#0e7490",
+  Poker: "#166534",
+  Shopping: "#d97706",
+  Education: "#9333ea",
+  Insurance: "#475569",
+  Salary: "#15803d",
+  Transfer: "#0891b2",
+  Reimbursement: "#65a30d",
+  Other: "#b8a98f"
 };
-const titleCase = (s) => (s || "Other").trim().replace(/^./, (c) => c.toUpperCase());
-const fmt = (n) =>
-  (n < 0 ? "-" : "") + Math.abs(n).toLocaleString("en-US", { style: "currency", currency: "USD" });
+const titleCase = s => (s || "Other").trim().replace(/^./, c => c.toUpperCase());
+const fmt = n => (n < 0 ? "-" : "") + Math.abs(n).toLocaleString("en-US", {
+  style: "currency",
+  currency: "USD"
+});
 const todayStr = () => new Date().toISOString().slice(0, 10);
-const ym = (d) => d.slice(0, 7);
-const monthLabel = (m) => {
+const ym = d => d.slice(0, 7);
+const monthLabel = m => {
   const [y, mo] = m.split("-");
-  return new Date(+y, +mo - 1, 1).toLocaleString("en-US", { month: "short", year: "2-digit" });
+  return new Date(+y, +mo - 1, 1).toLocaleString("en-US", {
+    month: "short",
+    year: "2-digit"
+  });
 };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-const yourShare = (t) =>
-  t.type === "expense" ? t.amount - (t.splits || []).reduce((s, p) => s + p.share, 0) : t.amount;
-const EMPTY = { txns: [], settlements: [] };
+const yourShare = t => t.type === "expense" ? t.amount - (t.splits || []).reduce((s, p) => s + p.share, 0) : t.amount;
+const EMPTY = {
+  txns: [],
+  settlements: []
+};
 
 // ── GitHub storage layer ──────────────────────────────────────
 const CFG_KEY = "rizz:cfg";
-const getCfg = () => { try { return JSON.parse(localStorage.getItem(CFG_KEY)); } catch { return null; } };
-const setCfg = (c) => localStorage.setItem(CFG_KEY, JSON.stringify(c));
-const ghHeaders = (c) => ({
+const getCfg = () => {
+  try {
+    return JSON.parse(localStorage.getItem(CFG_KEY));
+  } catch {
+    return null;
+  }
+};
+const setCfg = c => localStorage.setItem(CFG_KEY, JSON.stringify(c));
+const ghHeaders = c => ({
   Authorization: "Bearer " + c.token,
   Accept: "application/vnd.github+json",
-  "X-GitHub-Api-Version": "2022-11-28",
+  "X-GitHub-Api-Version": "2022-11-28"
 });
-const dataUrl = (c) =>
-  `https://api.github.com/repos/${c.owner}/${c.repo}/contents/rizzpenses.json`;
-
-const b64encode = (str) => btoa(unescape(encodeURIComponent(str)));
-const b64decode = (b64) => decodeURIComponent(escape(atob(b64.replace(/\n/g, ""))));
-
+const dataUrl = c => `https://api.github.com/repos/${c.owner}/${c.repo}/contents/rizzpenses.json`;
+const b64encode = str => btoa(unescape(encodeURIComponent(str)));
+const b64decode = b64 => decodeURIComponent(escape(atob(b64.replace(/\n/g, ""))));
 async function ghLoad(c) {
-  const res = await fetch(dataUrl(c), { headers: ghHeaders(c) });
-  if (res.status === 404) return { data: null, sha: null };
+  const res = await fetch(dataUrl(c), {
+    headers: ghHeaders(c)
+  });
+  if (res.status === 404) return {
+    data: null,
+    sha: null
+  };
   if (!res.ok) throw new Error("GitHub load failed: " + res.status);
   const j = await res.json();
-  return { data: JSON.parse(b64decode(j.content)), sha: j.sha };
+  return {
+    data: JSON.parse(b64decode(j.content)),
+    sha: j.sha
+  };
 }
-
 async function ghSave(c, data, sha, retried) {
   const body = {
     message: "rizzpenses sync " + new Date().toISOString(),
-    content: b64encode(JSON.stringify(data)),
+    content: b64encode(JSON.stringify(data))
   };
   if (sha) body.sha = sha;
   const res = await fetch(dataUrl(c), {
-    method: "PUT", headers: ghHeaders(c), body: JSON.stringify(body),
+    method: "PUT",
+    headers: ghHeaders(c),
+    body: JSON.stringify(body)
   });
   if ((res.status === 409 || res.status === 422) && !retried) {
     const fresh = await ghLoad(c); // sha went stale (edited elsewhere) — retry once
@@ -121,10 +160,9 @@ async function ghSave(c, data, sha, retried) {
 // per tap-to-pay into /inbox in the data repo. On open, the app
 // imports those files as transactions and deletes them.
 async function ghListInbox(c) {
-  const res = await fetch(
-    `https://api.github.com/repos/${c.owner}/${c.repo}/contents/inbox`,
-    { headers: ghHeaders(c) }
-  );
+  const res = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/contents/inbox`, {
+    headers: ghHeaders(c)
+  });
   if (res.status === 404) return []; // no inbox folder yet — nothing pending
   if (!res.ok) return [];
   const files = await res.json();
@@ -132,51 +170,54 @@ async function ghListInbox(c) {
   for (const f of Array.isArray(files) ? files : []) {
     if (!f.name.endsWith(".json")) continue;
     try {
-      const fr = await fetch(f.url, { headers: ghHeaders(c) });
+      const fr = await fetch(f.url, {
+        headers: ghHeaders(c)
+      });
       const fj = await fr.json();
-      items.push({ obj: JSON.parse(b64decode(fj.content)), path: f.path, sha: f.sha });
-    } catch { /* skip malformed drops */ }
+      items.push({
+        obj: JSON.parse(b64decode(fj.content)),
+        path: f.path,
+        sha: f.sha
+      });
+    } catch {/* skip malformed drops */}
   }
   return items;
 }
-
 async function ghDeleteFile(c, path, sha) {
   await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/contents/${path}`, {
-    method: "DELETE", headers: ghHeaders(c),
-    body: JSON.stringify({ message: "imported to rizzpenses", sha }),
+    method: "DELETE",
+    headers: ghHeaders(c),
+    body: JSON.stringify({
+      message: "imported to rizzpenses",
+      sha
+    })
   });
 }
-
 function inboxToTxn(obj) {
   const amount = Math.round(parseFloat(String(obj.amount ?? "").replace(/[^0-9.]/g, "")) * 100) / 100;
   if (!(amount > 0)) return null;
   const merchant = String(obj.merchant || obj.name || "Apple Pay purchase").trim();
   let category = "Other";
-  for (const [re, cat] of KEYWORD_CATS) if (re.test(merchant)) { category = cat; break; }
+  for (const [re, cat] of KEYWORD_CATS) if (re.test(merchant)) {
+    category = cat;
+    break;
+  }
   const date = /^\d{4}-\d{2}-\d{2}/.test(String(obj.date || "")) ? String(obj.date).slice(0, 10) : todayStr();
   return {
-    id: uid(), type: "expense", desc: merchant, amount, category, date,
-    vendor: merchant, notes: "via Apple Pay" + (obj.card ? ` · ${obj.card}` : ""), splits: [],
+    id: uid(),
+    type: "expense",
+    desc: merchant,
+    amount,
+    category,
+    date,
+    vendor: merchant,
+    notes: "via Apple Pay" + (obj.card ? ` · ${obj.card}` : ""),
+    splits: []
   };
 }
 
 // ── Smart input: Claude API if key set, regex fallback otherwise ──
-const KEYWORD_CATS = [
-  [/dinner|lunch|breakfast|coffee|cafe|caffe|restaurant|food|pizza|ramen|noodle|boba|drinks?/i, "Dining"],
-  [/grocer|costco|safeway|trader|qfc|fred meyer/i, "Groceries"],
-  [/uber|lyft|flight|bus|train|gas|transit|orca|parking/i, "Transport"],
-  [/movie|game|concert|netflix|spotify|candies/i, "Entertainment"],
-  [/gcloud|aws|cloud|software|subscription|domain|api/i, "Software"],
-  [/hospital|doctor|meds|pharmacy|dental/i, "Health"],
-  [/rent|electric|wifi|internet|utilit/i, "Housing"],
-  [/poker/i, "Poker"],
-  [/amazon|target|clothes|shoes|shopping/i, "Shopping"],
-  [/tuition|course|book|class/i, "Education"],
-  [/insurance/i, "Insurance"],
-  [/salary|paycheck|stipend/i, "Salary"],
-  [/zelle|venmo|transfer/i, "Transfer"],
-];
-
+const KEYWORD_CATS = [[/dinner|lunch|breakfast|coffee|cafe|caffe|restaurant|food|pizza|ramen|noodle|boba|drinks?/i, "Dining"], [/grocer|costco|safeway|trader|qfc|fred meyer/i, "Groceries"], [/uber|lyft|flight|bus|train|gas|transit|orca|parking/i, "Transport"], [/movie|game|concert|netflix|spotify|candies/i, "Entertainment"], [/gcloud|aws|cloud|software|subscription|domain|api/i, "Software"], [/hospital|doctor|meds|pharmacy|dental/i, "Health"], [/rent|electric|wifi|internet|utilit/i, "Housing"], [/poker/i, "Poker"], [/amazon|target|clothes|shoes|shopping/i, "Shopping"], [/tuition|course|book|class/i, "Education"], [/insurance/i, "Insurance"], [/salary|paycheck|stipend/i, "Salary"], [/zelle|venmo|transfer/i, "Transfer"]];
 function regexParse(input) {
   const isIncome = /\b(income|salary|paycheck|stipend|deposit)\b/i.test(input);
   const [mainRaw, splitRaw] = input.split(/\s[-–—]\s/);
@@ -185,29 +226,41 @@ function regexParse(input) {
   const amount = parseFloat(nums[nums.length - 1]);
   const desc = mainRaw.replace(new RegExp(nums[nums.length - 1] + "\\s*$"), "").trim() || "Untitled";
   let category = "Other";
-  for (const [re, cat] of KEYWORD_CATS) if (re.test(input)) { category = cat; break; }
+  for (const [re, cat] of KEYWORD_CATS) if (re.test(input)) {
+    category = cat;
+    break;
+  }
   if (isIncome && category === "Other") category = "Salary";
-
   let splits = [];
   if (splitRaw && !isIncome) {
-    const parts = splitRaw.split(",").map((p) => p.trim()).filter(Boolean);
-    const parsed = parts.map((p) => {
+    const parts = splitRaw.split(",").map(p => p.trim()).filter(Boolean);
+    const parsed = parts.map(p => {
       const m = p.match(/^(.+?)\s+(\d+(?:\.\d{1,2})?)$/);
-      return m ? { name: m[1].trim(), share: parseFloat(m[2]) } : { name: p, share: null };
+      return m ? {
+        name: m[1].trim(),
+        share: parseFloat(m[2])
+      } : {
+        name: p,
+        share: null
+      };
     });
-    if (parsed.every((p) => p.share !== null)) splits = parsed;
-    else {
-      const per = Math.round((amount / (parsed.length + 1)) * 100) / 100;
-      splits = parsed.map((p) => ({ name: p.name, share: per }));
+    if (parsed.every(p => p.share !== null)) splits = parsed;else {
+      const per = Math.round(amount / (parsed.length + 1) * 100) / 100;
+      splits = parsed.map(p => ({
+        name: p.name,
+        share: per
+      }));
     }
   }
   return {
     type: isIncome ? "income" : "expense",
-    desc: desc.replace(/^\w/, (c) => c.toUpperCase()),
-    amount, category, date: todayStr(), splits,
+    desc: desc.replace(/^\w/, c => c.toUpperCase()),
+    amount,
+    category,
+    date: todayStr(),
+    splits
   };
 }
-
 async function claudeParse(input, knownNames, apiKey) {
   const prompt = `Parse this one-line personal finance entry into JSON. Today is ${todayStr()}.
 Categories: ${CATEGORIES.join(", ")}. Known friend names: ${knownNames.join(", ") || "none"}.
@@ -224,21 +277,27 @@ Respond ONLY raw JSON, no markdown: {"type":"expense","desc":"...","amount":0,"c
       "Content-Type": "application/json",
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
+      "anthropic-dangerous-direct-browser-access": "true"
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514", max_tokens: 1000,
-      messages: [{ role: "user", content: prompt }],
-    }),
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      messages: [{
+        role: "user",
+        content: prompt
+      }]
+    })
   });
   if (!res.ok) throw new Error("api");
   const out = await res.json();
-  const text = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
+  const text = (out.content || []).filter(b => b.type === "text").map(b => b.text).join("");
   return JSON.parse(text.replace(/```json|```/g, "").trim());
 }
 
 // ── Setup screen ──────────────────────────────────────────────
-function Setup({ onDone }) {
+function Setup({
+  onDone
+}) {
   const existing = getCfg() || {};
   const [owner, setOwner] = useState(existing.owner || "");
   const [repo, setRepo] = useState(existing.repo || "rizzpenses-data");
@@ -246,12 +305,19 @@ function Setup({ onDone }) {
   const [anthropicKey, setAnthropicKey] = useState(existing.anthropicKey || "");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
-
   const test = async () => {
-    setBusy(true); setMsg("");
-    const cfg = { owner: owner.trim(), repo: repo.trim(), token: token.trim(), anthropicKey: anthropicKey.trim() };
+    setBusy(true);
+    setMsg("");
+    const cfg = {
+      owner: owner.trim(),
+      repo: repo.trim(),
+      token: token.trim(),
+      anthropicKey: anthropicKey.trim()
+    };
     try {
-      const res = await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}`, { headers: ghHeaders(cfg) });
+      const res = await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}`, {
+        headers: ghHeaders(cfg)
+      });
       if (!res.ok) throw new Error(res.status);
       setCfg(cfg);
       onDone();
@@ -260,38 +326,50 @@ function Setup({ onDone }) {
     }
     setBusy(false);
   };
-
-  return (
-    <div className="min-h-screen bg-stone-100 text-stone-900 font-mono flex items-start justify-center pt-10 px-4">
-      <div className="max-w-md w-full">
-        <h1 className="text-lg font-bold tracking-widest uppercase border-b-4 border-double border-stone-900 pb-3 mb-4">
-          Rizzpenses · Setup
-        </h1>
-        <ol className="text-xs text-stone-600 space-y-2 mb-4 list-decimal list-inside">
-          <li>Create a <b>private</b> repo on GitHub (e.g. <code>rizzpenses-data</code>). It will hold one JSON file.</li>
-          <li>GitHub → Settings → Developer settings → <b>Fine-grained tokens</b> → Generate. Scope it to <b>only that repo</b>, permission: <b>Contents — Read and write</b>. Long expiry.</li>
-          <li>Paste below. Everything stays in this browser.</li>
-        </ol>
-        <Field label="GitHub username">
-          <input className={inp} value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="your-username" />
-        </Field>
-        <Field label="Private data repo">
-          <input className={inp} value={repo} onChange={(e) => setRepo(e.target.value)} />
-        </Field>
-        <Field label="GitHub token">
-          <input className={inp} type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="github_pat_…" />
-        </Field>
-        <Field label="Anthropic API key (optional — smarter AI parsing)">
-          <input className={inp} type="password" value={anthropicKey} onChange={(e) => setAnthropicKey(e.target.value)} placeholder="sk-ant-… (blank = built-in parser)" />
-        </Field>
-        <button onClick={test} disabled={busy || !owner || !repo || !token}
-          className="w-full bg-stone-900 text-stone-50 py-2 text-xs uppercase tracking-widest disabled:opacity-50 mt-2">
-          {busy ? "Checking…" : "Connect"}
-        </button>
-        {msg && <p className="text-xs text-red-700 mt-2">{msg}</p>}
-      </div>
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: "min-h-screen bg-stone-100 text-stone-900 font-mono flex items-start justify-center pt-10 px-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-md w-full"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: "text-lg font-bold tracking-widest uppercase border-b-4 border-double border-stone-900 pb-3 mb-4"
+  }, "Rizzpenses · Setup"), /*#__PURE__*/React.createElement("ol", {
+    className: "text-xs text-stone-600 space-y-2 mb-4 list-decimal list-inside"
+  }, /*#__PURE__*/React.createElement("li", null, "Create a ", /*#__PURE__*/React.createElement("b", null, "private"), " repo on GitHub (e.g. ", /*#__PURE__*/React.createElement("code", null, "rizzpenses-data"), "). It will hold one JSON file."), /*#__PURE__*/React.createElement("li", null, "GitHub → Settings → Developer settings → ", /*#__PURE__*/React.createElement("b", null, "Fine-grained tokens"), " → Generate. Scope it to ", /*#__PURE__*/React.createElement("b", null, "only that repo"), ", permission: ", /*#__PURE__*/React.createElement("b", null, "Contents — Read and write"), ". Long expiry."), /*#__PURE__*/React.createElement("li", null, "Paste below. Everything stays in this browser.")), /*#__PURE__*/React.createElement(Field, {
+    label: "GitHub username"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: inp,
+    value: owner,
+    onChange: e => setOwner(e.target.value),
+    placeholder: "your-username"
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Private data repo"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: inp,
+    value: repo,
+    onChange: e => setRepo(e.target.value)
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "GitHub token"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: inp,
+    type: "password",
+    value: token,
+    onChange: e => setToken(e.target.value),
+    placeholder: "github_pat_…"
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Anthropic API key (optional — smarter AI parsing)"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: inp,
+    type: "password",
+    value: anthropicKey,
+    onChange: e => setAnthropicKey(e.target.value),
+    placeholder: "sk-ant-… (blank = built-in parser)"
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: test,
+    disabled: busy || !owner || !repo || !token,
+    className: "w-full bg-stone-900 text-stone-50 py-2 text-xs uppercase tracking-widest disabled:opacity-50 mt-2"
+  }, busy ? "Checking…" : "Connect"), msg && /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-red-700 mt-2"
+  }, msg)));
 }
 
 // ── Main app ──────────────────────────────────────────────────
@@ -309,37 +387,48 @@ function Rizzpenses() {
   const shaRef = useRef(null);
   const timerRef = useRef(null);
   const latestRef = useRef(EMPTY);
-
   useEffect(() => {
     if (!configured) return;
     (async () => {
       const cfg = getCfg();
       let current = EMPTY;
       try {
-        const { data: d, sha } = await ghLoad(cfg);
+        const {
+          data: d,
+          sha
+        } = await ghLoad(cfg);
         shaRef.current = sha;
-        if (d) current = { txns: d.txns || [], settlements: d.settlements || [] };
-        setData(current); latestRef.current = current;
+        if (d) current = {
+          txns: d.txns || [],
+          settlements: d.settlements || []
+        };
+        setData(current);
+        latestRef.current = current;
         setLoaded(true);
       } catch {
-        setSaveState("error"); setLoaded(true); return;
+        setSaveState("error");
+        setLoaded(true);
+        return;
       }
       // sweep the Apple Pay inbox
       try {
         const inbox = await ghListInbox(cfg);
-        const newTxns = inbox.map((f) => inboxToTxn(f.obj)).filter(Boolean);
+        const newTxns = inbox.map(f => inboxToTxn(f.obj)).filter(Boolean);
         if (newTxns.length) {
-          const merged = { ...current, txns: [...newTxns, ...current.txns] };
+          const merged = {
+            ...current,
+            txns: [...newTxns, ...current.txns]
+          };
           shaRef.current = await ghSave(cfg, merged, shaRef.current);
-          setData(merged); latestRef.current = merged;
+          setData(merged);
+          latestRef.current = merged;
           setSmartMsg(`Imported ${newTxns.length} Apple Pay transaction${newTxns.length > 1 ? "s" : ""} 💳`);
         }
         for (const f of inbox) await ghDeleteFile(cfg, f.path, f.sha);
-      } catch { /* inbox sweep is best-effort; drops stay for next open */ }
+      } catch {/* inbox sweep is best-effort; drops stay for next open */}
     })();
   }, [configured]);
-
-  const persist = (next) => {
+  const persist = next => {
     setData(next);
     latestRef.current = next;
     setSaveState("saving");
@@ -348,59 +437,104 @@ function Rizzpenses() {
       try {
         shaRef.current = await ghSave(getCfg(), latestRef.current, shaRef.current);
         setSaveState("idle");
-      } catch { setSaveState("error"); }
+      } catch {
+        setSaveState("error");
+      }
     }, 1200);
   };
-
-  const addTxn = (t) => persist({ ...data, txns: [{ ...t, id: uid() }, ...data.txns] });
-  const updateTxn = (t) => persist({ ...data, txns: data.txns.map((x) => (x.id === t.id ? t : x)) });
-  const deleteTxn = (id) => persist({ ...data, txns: data.txns.filter((t) => t.id !== id) });
-  const addSettlement = (person, amount) =>
-    persist({ ...data, settlements: [{ id: uid(), person, amount, date: todayStr() }, ...data.settlements] });
-  const deleteSettlement = (id) =>
-    persist({ ...data, settlements: data.settlements.filter((s) => s.id !== id) });
-
+  const addTxn = t => persist({
+    ...data,
+    txns: [{
+      ...t,
+      id: uid()
+    }, ...data.txns]
+  });
+  const updateTxn = t => persist({
+    ...data,
+    txns: data.txns.map(x => x.id === t.id ? t : x)
+  });
+  const deleteTxn = id => persist({
+    ...data,
+    txns: data.txns.filter(t => t.id !== id)
+  });
+  const addSettlement = (person, amount) => persist({
+    ...data,
+    settlements: [{
+      id: uid(),
+      person,
+      amount,
+      date: todayStr()
+    }, ...data.settlements]
+  });
+  const deleteSettlement = id => persist({
+    ...data,
+    settlements: data.settlements.filter(s => s.id !== id)
+  });
   const people = useMemo(() => {
     const m = {};
-    data.txns.forEach((t) =>
-      (t.splits || []).forEach((p) => {
-        const k = p.name.trim(); if (!k) return;
-        m[k] = m[k] || { split: 0, paid: 0, history: [] };
-        m[k].split += p.share;
-        m[k].history.push({ kind: "split", date: t.date, desc: t.desc, amount: p.share });
-      })
-    );
-    data.settlements.forEach((s) => {
-      m[s.person] = m[s.person] || { split: 0, paid: 0, history: [] };
+    data.txns.forEach(t => (t.splits || []).forEach(p => {
+      const k = p.name.trim();
+      if (!k) return;
+      m[k] = m[k] || {
+        split: 0,
+        paid: 0,
+        history: []
+      };
+      m[k].split += p.share;
+      m[k].history.push({
+        kind: "split",
+        date: t.date,
+        desc: t.desc,
+        amount: p.share
+      });
+    }));
+    data.settlements.forEach(s => {
+      m[s.person] = m[s.person] || {
+        split: 0,
+        paid: 0,
+        history: []
+      };
       m[s.person].paid += s.amount;
-      m[s.person].history.push({ kind: "paid", date: s.date, desc: "Settled up", amount: s.amount, id: s.id });
+      m[s.person].history.push({
+        kind: "paid",
+        date: s.date,
+        desc: "Settled up",
+        amount: s.amount,
+        id: s.id
+      });
     });
-    Object.values(m).forEach((p) => {
+    Object.values(m).forEach(p => {
       p.owed = Math.round((p.split - p.paid) * 100) / 100;
-      p.history.sort((a, b) => (a.date < b.date ? 1 : -1));
+      p.history.sort((a, b) => a.date < b.date ? 1 : -1);
     });
     return m;
   }, [data]);
   const knownNames = Object.keys(people);
-
   const feed = useMemo(() => {
-    const rows = [
-      ...data.txns.map((t) => ({ ...t, kind: "txn" })),
-      ...data.settlements.map((s) => ({
-        kind: "settlement", id: s.id, desc: `Settled up with ${s.person}`,
-        category: "Reimbursement", date: s.date, amount: s.amount, type: "settlement",
-      })),
-    ];
-    return rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    const rows = [...data.txns.map(t => ({
+      ...t,
+      kind: "txn"
+    })), ...data.settlements.map(s => ({
+      kind: "settlement",
+      id: s.id,
+      desc: `Settled up with ${s.person}`,
+      category: "Reimbursement",
+      date: s.date,
+      amount: s.amount,
+      type: "settlement"
+    }))];
+    return rows.sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
   }, [data]);
-
   const smartAdd = async () => {
     if (!smart.trim() || smartBusy) return;
-    setSmartBusy(true); setSmartMsg("");
+    setSmartBusy(true);
+    setSmartMsg("");
     const cfg = getCfg();
     let parsed = null;
     if (cfg.anthropicKey) {
-      try { parsed = await claudeParse(smart.trim(), knownNames, cfg.anthropicKey); } catch { /* fall through */ }
+      try {
+        parsed = await claudeParse(smart.trim(), knownNames, cfg.anthropicKey);
+      } catch {/* fall through */}
     }
     if (!parsed) parsed = regexParse(smart.trim());
     if (parsed && parsed.desc && parsed.amount > 0) {
@@ -409,561 +543,768 @@ function Rizzpenses() {
         desc: parsed.desc,
         amount: Math.round(parsed.amount * 100) / 100,
         category: CATEGORIES.includes(titleCase(parsed.category)) ? titleCase(parsed.category) : "Other",
-        date: parsed.date || todayStr(), vendor: "", notes: "",
-        splits: (parsed.splits || []).filter((s) => s.name && s.share > 0)
-          .map((s) => ({ name: s.name, share: Math.round(s.share * 100) / 100 })),
+        date: parsed.date || todayStr(),
+        vendor: "",
+        notes: "",
+        splits: (parsed.splits || []).filter(s => s.name && s.share > 0).map(s => ({
+          name: s.name,
+          share: Math.round(s.share * 100) / 100
+        }))
       });
       setSmart("");
-      setSmartMsg(`Added: ${parsed.desc} · ${fmt(parsed.amount)}${parsed.splits?.length ? ` · split with ${parsed.splits.map((s) => s.name).join(", ")}` : ""}`);
+      setSmartMsg(`Added: ${parsed.desc} · ${fmt(parsed.amount)}${parsed.splits?.length ? ` · split with ${parsed.splits.map(s => s.name).join(", ")}` : ""}`);
     } else {
       setSmartMsg("Couldn't parse that — try the + button instead.");
     }
     setSmartBusy(false);
   };
-
-  if (!configured) return <Setup onDone={() => setConfigured(true)} />;
-
-  const TabBtn = ({ id, label }) => (
-    <button onClick={() => setTab(id)}
-      className={`flex-1 py-2.5 text-[11px] uppercase tracking-widest focus:outline-none ${
-        tab === id ? "font-bold border-t-2 border-stone-900 bg-white" : "text-stone-500 border-t border-stone-300"}`}>
-      {label}
-    </button>
-  );
-
-  return (
-    <div className="min-h-screen bg-stone-100 text-stone-900 font-mono pb-20">
-      <div className="max-w-2xl mx-auto px-4 pt-6">
-        <header className="border-b-4 border-double border-stone-900 pb-3 mb-4 flex items-baseline justify-between">
-          <h1 className="text-lg font-bold tracking-widest uppercase">Rizzpenses</h1>
-          <span className="text-[11px] text-stone-500">
-            {saveState === "saving" ? "syncing…" : saveState === "error" ? (
-              <button className="text-red-700 underline" onClick={() => persist(data)}>sync failed — retry</button>
-            ) : loaded ? "synced" : "loading…"}
-          </span>
-        </header>
-
-        <div className="mb-5">
-          <div className="flex border border-stone-400 bg-white">
-            <input className="flex-1 px-3 py-2 text-sm bg-transparent focus:outline-none"
-              placeholder='Try "dinner 27 - hasita, om"'
-              value={smart} onChange={(e) => setSmart(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && smartAdd()} />
-            <button onClick={smartAdd} disabled={smartBusy}
-              className="px-4 bg-stone-900 text-stone-50 text-xs uppercase tracking-widest disabled:opacity-50">
-              {smartBusy ? "…" : "Add"}
-            </button>
-          </div>
-          {smartMsg && <p className="text-xs mt-1 text-stone-600">{smartMsg}</p>}
-        </div>
-
-        {tab === "dashboard" && <Dashboard data={data} feed={feed} people={people} />}
-        {tab === "txns" && (
-          <Transactions feed={feed}
-            onDelete={(row) => row.kind === "settlement" ? deleteSettlement(row.id) : deleteTxn(row.id)}
-            onEdit={(t) => { setEditTxn(t); setShowAdd(true); }} />
-        )}
-        {tab === "balances" && <Balances people={people} onSettle={addSettlement} />}
-        {tab === "insights" && <Insights data={data} />}
-        {tab === "data" && <DataIO data={data} persist={persist} onReconfigure={() => setConfigured(false)} />}
-      </div>
-
-      <nav className="fixed bottom-0 inset-x-0 bg-stone-100 border-t border-stone-300">
-        <div className="max-w-2xl mx-auto flex items-stretch">
-          <TabBtn id="dashboard" label="Home" />
-          <TabBtn id="txns" label="Txns" />
-          <button onClick={() => { setEditTxn(null); setShowAdd(true); }}
-            className="w-14 my-1 mx-1 bg-stone-900 text-stone-50 text-xl leading-none focus:outline-none"
-            aria-label="Add transaction">＋</button>
-          <TabBtn id="balances" label="Splits" />
-          <TabBtn id="insights" label="Stats" />
-          <TabBtn id="data" label="Data" />
-        </div>
-      </nav>
-
-      {showAdd && (
-        <AddModal initial={editTxn} knownNames={knownNames}
-          onClose={() => setShowAdd(false)}
-          onSave={(t) => { t.id ? updateTxn(t) : addTxn(t); setShowAdd(false); }} />
-      )}
-    </div>
-  );
+  if (!configured) return /*#__PURE__*/React.createElement(Setup, {
+    onDone: () => setConfigured(true)
+  });
+  const TabBtn = ({
+    id,
+    label
+  }) => /*#__PURE__*/React.createElement("button", {
+    onClick: () => setTab(id),
+    className: `flex-1 py-2.5 text-[11px] uppercase tracking-widest focus:outline-none ${tab === id ? "font-bold border-t-2 border-stone-900 bg-white" : "text-stone-500 border-t border-stone-300"}`
+  }, label);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "min-h-screen bg-stone-100 text-stone-900 font-mono pb-20"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-2xl mx-auto px-4 pt-6"
+  }, /*#__PURE__*/React.createElement("header", {
+    className: "border-b-4 border-double border-stone-900 pb-3 mb-4 flex items-baseline justify-between"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: "text-lg font-bold tracking-widest uppercase"
+  }, "Rizzpenses"), /*#__PURE__*/React.createElement("span", {
+    className: "text-[11px] text-stone-500"
+  }, saveState === "saving" ? "syncing…" : saveState === "error" ? /*#__PURE__*/React.createElement("button", {
+    className: "text-red-700 underline",
+    onClick: () => persist(data)
+  }, "sync failed — retry") : loaded ? "synced" : "loading…")), /*#__PURE__*/React.createElement("div", {
+    className: "mb-5"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex border border-stone-400 bg-white"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: "flex-1 px-3 py-2 text-sm bg-transparent focus:outline-none",
+    placeholder: "Try \"dinner 27 - hasita, om\"",
+    value: smart,
+    onChange: e => setSmart(e.target.value),
+    onKeyDown: e => e.key === "Enter" && smartAdd()
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: smartAdd,
+    disabled: smartBusy,
+    className: "px-4 bg-stone-900 text-stone-50 text-xs uppercase tracking-widest disabled:opacity-50"
+  }, smartBusy ? "…" : "Add")), smartMsg && /*#__PURE__*/React.createElement("p", {
+    className: "text-xs mt-1 text-stone-600"
+  }, smartMsg)), tab === "dashboard" && /*#__PURE__*/React.createElement(Dashboard, {
+    data: data,
+    feed: feed,
+    people: people
+  }), tab === "txns" && /*#__PURE__*/React.createElement(Transactions, {
+    feed: feed,
+    onDelete: row => row.kind === "settlement" ? deleteSettlement(row.id) : deleteTxn(row.id),
+    onEdit: t => {
+      setEditTxn(t);
+      setShowAdd(true);
+    }
+  }), tab === "balances" && /*#__PURE__*/React.createElement(Balances, {
+    people: people,
+    onSettle: addSettlement
+  }), tab === "insights" && /*#__PURE__*/React.createElement(Insights, {
+    data: data
+  }), tab === "data" && /*#__PURE__*/React.createElement(DataIO, {
+    data: data,
+    persist: persist,
+    onReconfigure: () => setConfigured(false)
+  })), /*#__PURE__*/React.createElement("nav", {
+    className: "fixed bottom-0 inset-x-0 bg-stone-100 border-t border-stone-300"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "max-w-2xl mx-auto flex items-stretch"
+  }, /*#__PURE__*/React.createElement(TabBtn, {
+    id: "dashboard",
+    label: "Home"
+  }), /*#__PURE__*/React.createElement(TabBtn, {
+    id: "txns",
+    label: "Txns"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      setEditTxn(null);
+      setShowAdd(true);
+    },
+    className: "w-14 my-1 mx-1 bg-stone-900 text-stone-50 text-xl leading-none focus:outline-none",
+    "aria-label": "Add transaction"
+  }, "＋"), /*#__PURE__*/React.createElement(TabBtn, {
+    id: "balances",
+    label: "Splits"
+  }), /*#__PURE__*/React.createElement(TabBtn, {
+    id: "insights",
+    label: "Stats"
+  }), /*#__PURE__*/React.createElement(TabBtn, {
+    id: "data",
+    label: "Data"
+  }))), showAdd && /*#__PURE__*/React.createElement(AddModal, {
+    initial: editTxn,
+    knownNames: knownNames,
+    onClose: () => setShowAdd(false),
+    onSave: t => {
+      t.id ? updateTxn(t) : addTxn(t);
+      setShowAdd(false);
+    }
+  }));
 }
 
 // ── Dashboard ─────────────────────────────────────────────────
-function Dashboard({ data, feed }) {
+function Dashboard({
+  data,
+  feed
+}) {
   const month = ym(todayStr());
-  const spent = data.txns.filter((t) => t.type === "expense" && ym(t.date) === month)
-    .reduce((s, t) => s + t.amount, 0);
-  const income = data.txns.filter((t) => t.type === "income" && ym(t.date) === month)
-    .reduce((s, t) => s + t.amount, 0);
-  const actual = data.txns.filter((t) => t.type === "expense").reduce((s, t) => s + yourShare(t), 0);
-
+  const spent = data.txns.filter(t => t.type === "expense" && ym(t.date) === month).reduce((s, t) => s + t.amount, 0);
+  const income = data.txns.filter(t => t.type === "income" && ym(t.date) === month).reduce((s, t) => s + t.amount, 0);
+  const actual = data.txns.filter(t => t.type === "expense").reduce((s, t) => s + yourShare(t), 0);
   const byMonth = useMemo(() => {
     const m = {};
-    data.txns.forEach((t) => {
+    data.txns.forEach(t => {
       const k = ym(t.date);
-      m[k] = m[k] || { month: k, expenses: 0, income: 0 };
+      m[k] = m[k] || {
+        month: k,
+        expenses: 0,
+        income: 0
+      };
       m[k][t.type === "expense" ? "expenses" : "income"] += t.amount;
     });
-    return Object.values(m).sort((a, b) => (a.month < b.month ? -1 : 1)).slice(-12)
-      .map((r) => ({ ...r, label: monthLabel(r.month) }));
+    return Object.values(m).sort((a, b) => a.month < b.month ? -1 : 1).slice(-12).map(r => ({
+      ...r,
+      label: monthLabel(r.month)
+    }));
   }, [data]);
-
   const byCat = useMemo(() => {
     const m = {};
-    data.txns.filter((t) => t.type === "expense").forEach((t) => {
+    data.txns.filter(t => t.type === "expense").forEach(t => {
       m[t.category] = (m[t.category] || 0) + t.amount;
     });
-    return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    return Object.entries(m).map(([name, value]) => ({
+      name,
+      value
+    })).sort((a, b) => b.value - a.value);
   }, [data]);
-
-  return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <Stat label="Spent / mo" value={fmt(spent)} tone="text-red-700" />
-        <Stat label="Income / mo" value={fmt(income)} tone="text-green-700" />
-        <Stat label="Your actual" value={fmt(actual)} tone="text-stone-900" sub="after splits" />
-      </div>
-
-      {byMonth.length > 1 && (
-        <Card title="Spending vs income">
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={byMonth} margin={{ left: -15, right: 5 }}>
-              <CartesianGrid stroke="#e7e5e4" strokeDasharray="2 4" />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fontFamily: "monospace" }} />
-              <YAxis tick={{ fontSize: 10, fontFamily: "monospace" }} />
-              <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontFamily: "monospace", fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 11, fontFamily: "monospace" }} />
-              <Line dataKey="expenses" stroke="#b91c1c" strokeWidth={2} dot={{ r: 2 }} />
-              <Line dataKey="income" stroke="#15803d" strokeWidth={2} dot={{ r: 2 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-      )}
-
-      {byCat.length > 0 && (
-        <Card title="By category">
-          <div className="flex items-center">
-            <div style={{ width: "55%", height: 180 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={byCat} dataKey="value" innerRadius={45} outerRadius={75} paddingAngle={1}>
-                    {byCat.map((c) => <Cell key={c.name} fill={CAT_COLORS[c.name] || "#b8a98f"} />)}
-                  </Pie>
-                  <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontFamily: "monospace", fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <ul className="text-xs space-y-1 flex-1">
-              {byCat.slice(0, 7).map((c) => (
-                <li key={c.name} className="flex items-center gap-2">
-                  <span className="w-3 h-3 inline-block" style={{ background: CAT_COLORS[c.name] || "#b8a98f" }} />
-                  <span className="flex-1 truncate">{c.name}</span>
-                  <span className="tabular-nums">{fmt(c.value)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Card>
-      )}
-
-      <Card title="Recent">
-        <TxnList rows={feed.slice(0, 8)} compact />
-      </Card>
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: "space-y-5"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-3 gap-2 text-center"
+  }, /*#__PURE__*/React.createElement(Stat, {
+    label: "Spent / mo",
+    value: fmt(spent),
+    tone: "text-red-700"
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Income / mo",
+    value: fmt(income),
+    tone: "text-green-700"
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Your actual",
+    value: fmt(actual),
+    tone: "text-stone-900",
+    sub: "after splits"
+  })), byMonth.length > 1 && /*#__PURE__*/React.createElement(Card, {
+    title: "Spending vs income"
+  }, /*#__PURE__*/React.createElement(ResponsiveContainer, {
+    width: "100%",
+    height: 200
+  }, /*#__PURE__*/React.createElement(LineChart, {
+    data: byMonth,
+    margin: {
+      left: -15,
+      right: 5
+    }
+  }, /*#__PURE__*/React.createElement(CartesianGrid, {
+    stroke: "#e7e5e4",
+    strokeDasharray: "2 4"
+  }), /*#__PURE__*/React.createElement(XAxis, {
+    dataKey: "label",
+    tick: {
+      fontSize: 10,
+      fontFamily: "monospace"
+    }
+  }), /*#__PURE__*/React.createElement(YAxis, {
+    tick: {
+      fontSize: 10,
+      fontFamily: "monospace"
+    }
+  }), /*#__PURE__*/React.createElement(Tooltip, {
+    formatter: v => fmt(v),
+    contentStyle: {
+      fontFamily: "monospace",
+      fontSize: 12
+    }
+  }), /*#__PURE__*/React.createElement(Legend, {
+    wrapperStyle: {
+      fontSize: 11,
+      fontFamily: "monospace"
+    }
+  }), /*#__PURE__*/React.createElement(Line, {
+    dataKey: "expenses",
+    stroke: "#b91c1c",
+    strokeWidth: 2,
+    dot: {
+      r: 2
+    }
+  }), /*#__PURE__*/React.createElement(Line, {
+    dataKey: "income",
+    stroke: "#15803d",
+    strokeWidth: 2,
+    dot: {
+      r: 2
+    }
+  })))), byCat.length > 0 && /*#__PURE__*/React.createElement(Card, {
+    title: "By category"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "55%",
+      height: 180
+    }
+  }, /*#__PURE__*/React.createElement(ResponsiveContainer, {
+    width: "100%",
+    height: "100%"
+  }, /*#__PURE__*/React.createElement(PieChart, null, /*#__PURE__*/React.createElement(Pie, {
+    data: byCat,
+    dataKey: "value",
+    innerRadius: 45,
+    outerRadius: 75,
+    paddingAngle: 1
+  }, byCat.map(c => /*#__PURE__*/React.createElement(Cell, {
+    key: c.name,
+    fill: CAT_COLORS[c.name] || "#b8a98f"
+  }))), /*#__PURE__*/React.createElement(Tooltip, {
+    formatter: v => fmt(v),
+    contentStyle: {
+      fontFamily: "monospace",
+      fontSize: 12
+    }
+  })))), /*#__PURE__*/React.createElement("ul", {
+    className: "text-xs space-y-1 flex-1"
+  }, byCat.slice(0, 7).map(c => /*#__PURE__*/React.createElement("li", {
+    key: c.name,
+    className: "flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-3 h-3 inline-block",
+    style: {
+      background: CAT_COLORS[c.name] || "#b8a98f"
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "flex-1 truncate"
+  }, c.name), /*#__PURE__*/React.createElement("span", {
+    className: "tabular-nums"
+  }, fmt(c.value))))))), /*#__PURE__*/React.createElement(Card, {
+    title: "Recent"
+  }, /*#__PURE__*/React.createElement(TxnList, {
+    rows: feed.slice(0, 8),
+    compact: true
+  })));
 }
 
 // ── Transactions ──────────────────────────────────────────────
-function Transactions({ feed, onDelete, onEdit }) {
+function Transactions({
+  feed,
+  onDelete,
+  onEdit
+}) {
   const [q, setQ] = useState("");
   const [kind, setKind] = useState("all");
   const [group, setGroup] = useState("list");
-
   const rows = useMemo(() => {
     let r = feed;
-    if (kind === "expense") r = r.filter((t) => t.type === "expense");
-    if (kind === "income") r = r.filter((t) => t.type === "income");
-    if (kind === "reimb") r = r.filter((t) => t.type === "settlement" || t.category === "Reimbursement");
+    if (kind === "expense") r = r.filter(t => t.type === "expense");
+    if (kind === "income") r = r.filter(t => t.type === "income");
+    if (kind === "reimb") r = r.filter(t => t.type === "settlement" || t.category === "Reimbursement");
     if (q.trim()) {
       const s = q.toLowerCase();
-      r = r.filter((t) =>
-        [t.desc, t.category, t.vendor, t.notes].filter(Boolean).join(" ").toLowerCase().includes(s));
+      r = r.filter(t => [t.desc, t.category, t.vendor, t.notes].filter(Boolean).join(" ").toLowerCase().includes(s));
     }
     return r;
   }, [feed, q, kind]);
-
-  const spent = rows.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-  const earned = rows.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-
+  const spent = rows.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const earned = rows.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const grouped = useMemo(() => {
     if (group !== "month") return null;
     const m = {};
-    rows.forEach((t) => { (m[ym(t.date)] = m[ym(t.date)] || []).push(t); });
-    return Object.entries(m).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+    rows.forEach(t => {
+      (m[ym(t.date)] = m[ym(t.date)] || []).push(t);
+    });
+    return Object.entries(m).sort((a, b) => a[0] < b[0] ? 1 : -1);
   }, [rows, group]);
-
-  return (
-    <div className="space-y-4">
-      <input className="w-full border border-stone-400 bg-white px-3 py-2 text-sm focus:outline-none focus:border-stone-900"
-        placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} />
-      <div className="flex gap-1 text-xs flex-wrap">
-        {[["all", "All"], ["expense", "Expenses"], ["income", "Income"], ["reimb", "Reimb."]].map(([id, l]) => (
-          <Chip key={id} active={kind === id} onClick={() => setKind(id)}>{l}</Chip>
-        ))}
-        <span className="flex-1" />
-        {[["list", "List"], ["month", "By month"]].map(([id, l]) => (
-          <Chip key={id} active={group === id} onClick={() => setGroup(id)}>{l}</Chip>
-        ))}
-      </div>
-      {kind === "reimb" ? (
-        <div className="grid grid-cols-1 gap-2 text-center">
-          <Stat label="Paid back to you" tone="text-green-700"
-            value={fmt(rows.reduce((s, t) => s + t.amount, 0))}
-            sub={`${rows.length} reimbursement${rows.length === 1 ? "" : "s"}`} />
-        </div>
-      ) : (
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <Stat label="Spent" value={fmt(spent)} tone="text-red-700" />
-        <Stat label="Earned" value={fmt(earned)} tone="text-green-700" />
-        <Stat label="Net" value={fmt(earned - spent)} tone={earned - spent >= 0 ? "text-green-700" : "text-red-700"} />
-      </div>
-      )}
-      <p className="text-xs text-stone-500">{rows.length} transactions</p>
-
-      {group === "list" ? (
-        <TxnList rows={rows} onDelete={onDelete} onEdit={onEdit} />
-      ) : (
-        grouped.map(([m, list]) => (
-          <div key={m}>
-            <h3 className="text-xs uppercase tracking-wider text-stone-500 mt-4 mb-1 flex justify-between">
-              <span>{monthLabel(m)}</span>
-              <span className="tabular-nums">
-                {fmt(list.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0))}
-              </span>
-            </h3>
-            <TxnList rows={list} onDelete={onDelete} onEdit={onEdit} />
-          </div>
-        ))
-      )}
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: "space-y-4"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: "w-full border border-stone-400 bg-white px-3 py-2 text-sm focus:outline-none focus:border-stone-900",
+    placeholder: "Search transactions…",
+    value: q,
+    onChange: e => setQ(e.target.value)
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1 text-xs flex-wrap"
+  }, [["all", "All"], ["expense", "Expenses"], ["income", "Income"], ["reimb", "Reimb."]].map(([id, l]) => /*#__PURE__*/React.createElement(Chip, {
+    key: id,
+    active: kind === id,
+    onClick: () => setKind(id)
+  }, l)), /*#__PURE__*/React.createElement("span", {
+    className: "flex-1"
+  }), [["list", "List"], ["month", "By month"]].map(([id, l]) => /*#__PURE__*/React.createElement(Chip, {
+    key: id,
+    active: group === id,
+    onClick: () => setGroup(id)
+  }, l))), kind === "reimb" ? /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-1 gap-2 text-center"
+  }, /*#__PURE__*/React.createElement(Stat, {
+    label: "Paid back to you",
+    tone: "text-green-700",
+    value: fmt(rows.reduce((s, t) => s + t.amount, 0)),
+    sub: `${rows.length} reimbursement${rows.length === 1 ? "" : "s"}`
+  })) : /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-3 gap-2 text-center"
+  }, /*#__PURE__*/React.createElement(Stat, {
+    label: "Spent",
+    value: fmt(spent),
+    tone: "text-red-700"
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Earned",
+    value: fmt(earned),
+    tone: "text-green-700"
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Net",
+    value: fmt(earned - spent),
+    tone: earned - spent >= 0 ? "text-green-700" : "text-red-700"
+  })), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-stone-500"
+  }, rows.length, " transactions"), group === "list" ? /*#__PURE__*/React.createElement(TxnList, {
+    rows: rows,
+    onDelete: onDelete,
+    onEdit: onEdit
+  }) : grouped.map(([m, list]) => /*#__PURE__*/React.createElement("div", {
+    key: m
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "text-xs uppercase tracking-wider text-stone-500 mt-4 mb-1 flex justify-between"
+  }, /*#__PURE__*/React.createElement("span", null, monthLabel(m)), /*#__PURE__*/React.createElement("span", {
+    className: "tabular-nums"
+  }, fmt(list.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0)))), /*#__PURE__*/React.createElement(TxnList, {
+    rows: list,
+    onDelete: onDelete,
+    onEdit: onEdit
+  }))));
 }
-
-function TxnList({ rows, onDelete, onEdit, compact }) {
+function TxnList({
+  rows,
+  onDelete,
+  onEdit,
+  compact
+}) {
   const [open, setOpen] = useState(null);
-  if (!rows.length)
-    return <p className="text-sm text-stone-500 border border-dashed border-stone-300 p-4 text-center">Nothing here yet.</p>;
-  return (
-    <ul className="divide-y divide-stone-300 border-t border-b border-stone-300 bg-white">
-      {rows.map((t) => {
-        const credit = t.type !== "expense";
-        const isOpen = open === t.id;
-        return (
-          <li key={t.id}>
-            <div className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer"
-              onClick={() => setOpen(isOpen ? null : t.id)}>
-              <span className="w-6 h-6 shrink-0 text-[10px] flex items-center justify-center border border-stone-400 text-stone-600">
-                {t.type === "settlement" ? "↩" : (t.category || "O")[0]}
-              </span>
-              <span className="flex-1 min-w-0">
-                <span className="block truncate">{t.desc}</span>
-                <span className="block text-[11px] text-stone-500">
-                  {t.category}{t.splits?.length ? ` · split ×${t.splits.length}` : ""}
-                </span>
-              </span>
-              {!compact && <span className="text-[11px] text-stone-500 tabular-nums hidden sm:block">{t.date}</span>}
-              <span className={`tabular-nums ${credit ? "text-green-700" : ""}`}>
-                {credit ? "+" : ""}{fmt(t.amount)}
-              </span>
-            </div>
-            {isOpen && !compact && (
-              <div className="px-3 pb-2 text-xs text-stone-600 space-y-1 bg-stone-50">
-                <div>{t.date}{t.vendor ? ` · ${t.vendor}` : ""}</div>
-                {t.notes && <div>{t.notes}</div>}
-                {t.splits?.length > 0 && (
-                  <div>
-                    Splits: {t.splits.map((s) => `${s.name} ${fmt(s.share)}`).join(", ")} ·
-                    {" "}your share {fmt(yourShare(t))}
-                  </div>
-                )}
-                <div className="flex gap-3 pt-1">
-                  {t.kind === "txn" && onEdit && (
-                    <button className="underline" onClick={(e) => { e.stopPropagation(); onEdit(t); }}>edit</button>
-                  )}
-                  {onDelete && (
-                    <button className="underline text-red-700" onClick={(e) => { e.stopPropagation(); onDelete(t); }}>delete</button>
-                  )}
-                </div>
-              </div>
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  );
+  if (!rows.length) return /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-stone-500 border border-dashed border-stone-300 p-4 text-center"
+  }, "Nothing here yet.");
+  return /*#__PURE__*/React.createElement("ul", {
+    className: "divide-y divide-stone-300 border-t border-b border-stone-300 bg-white"
+  }, rows.map(t => {
+    const credit = t.type !== "expense";
+    const isOpen = open === t.id;
+    return /*#__PURE__*/React.createElement("li", {
+      key: t.id
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-3 px-3 py-2 text-sm cursor-pointer",
+      onClick: () => setOpen(isOpen ? null : t.id)
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "w-6 h-6 shrink-0 text-[10px] flex items-center justify-center border border-stone-400 text-stone-600"
+    }, t.type === "settlement" ? "↩" : (t.category || "O")[0]), /*#__PURE__*/React.createElement("span", {
+      className: "flex-1 min-w-0"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "block truncate"
+    }, t.desc), /*#__PURE__*/React.createElement("span", {
+      className: "block text-[11px] text-stone-500"
+    }, t.category, t.splits?.length ? ` · split ×${t.splits.length}` : "")), !compact && /*#__PURE__*/React.createElement("span", {
+      className: "text-[11px] text-stone-500 tabular-nums hidden sm:block"
+    }, t.date), /*#__PURE__*/React.createElement("span", {
+      className: `tabular-nums ${credit ? "text-green-700" : ""}`
+    }, credit ? "+" : "", fmt(t.amount))), isOpen && !compact && /*#__PURE__*/React.createElement("div", {
+      className: "px-3 pb-2 text-xs text-stone-600 space-y-1 bg-stone-50"
+    }, /*#__PURE__*/React.createElement("div", null, t.date, t.vendor ? ` · ${t.vendor}` : ""), t.notes && /*#__PURE__*/React.createElement("div", null, t.notes), t.splits?.length > 0 && /*#__PURE__*/React.createElement("div", null, "Splits: ", t.splits.map(s => `${s.name} ${fmt(s.share)}`).join(", "), " ·", " ", "your share ", fmt(yourShare(t))), /*#__PURE__*/React.createElement("div", {
+      className: "flex gap-3 pt-1"
+    }, t.kind === "txn" && onEdit && /*#__PURE__*/React.createElement("button", {
+      className: "underline",
+      onClick: e => {
+        e.stopPropagation();
+        onEdit(t);
+      }
+    }, "edit"), onDelete && /*#__PURE__*/React.createElement("button", {
+      className: "underline text-red-700",
+      onClick: e => {
+        e.stopPropagation();
+        onDelete(t);
+      }
+    }, "delete"))));
+  }));
 }
 
 // ── Balances ──────────────────────────────────────────────────
-function Balances({ people, onSettle }) {
+function Balances({
+  people,
+  onSettle
+}) {
   const [openHist, setOpenHist] = useState(null);
   const [settling, setSettling] = useState(null);
   const [amt, setAmt] = useState("");
-
   const entries = Object.entries(people).sort((a, b) => b[1].owed - a[1].owed);
   const owedTotal = entries.reduce((s, [, p]) => s + Math.max(p.owed, 0), 0);
   const paidTotal = entries.reduce((s, [, p]) => s + p.paid, 0);
   const splitTotal = entries.reduce((s, [, p]) => s + p.split, 0);
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <Stat label="Owed to you" value={fmt(owedTotal)} tone="text-amber-700"
-          sub={`${entries.filter(([, p]) => p.owed > 0.005).length} unsettled`} />
-        <Stat label="Paid back" value={fmt(paidTotal)} tone="text-green-700" />
-        <Stat label="Total split" value={fmt(splitTotal)} tone="text-stone-900" sub="all time" />
-      </div>
-
-      {entries.length === 0 && (
-        <p className="text-sm text-stone-500 border border-dashed border-stone-300 p-4 text-center">
-          No splits yet. Add a transaction with a split, or use the smart bar.
-        </p>
-      )}
-
-      <ul className="space-y-2">
-        {entries.map(([name, p]) => (
-          <li key={name} className="border border-stone-300 bg-white p-3 text-sm">
-            <div className="flex items-center gap-3">
-              <span className="w-8 h-8 shrink-0 bg-stone-900 text-stone-50 flex items-center justify-center font-bold">
-                {name[0].toUpperCase()}
-              </span>
-              <span className="flex-1">
-                <span className="block font-bold">{name}</span>
-                <span className="block text-[11px] text-stone-500">
-                  split {fmt(p.split)} · paid {fmt(p.paid)}
-                </span>
-              </span>
-              <span className={`tabular-nums font-bold ${p.owed > 0.005 ? "text-amber-700" : "text-green-700"}`}>
-                {fmt(p.owed)}
-              </span>
-            </div>
-            <div className="flex gap-3 mt-2 text-xs">
-              <button className="underline" onClick={() => setOpenHist(openHist === name ? null : name)}>
-                history ({p.history.length})
-              </button>
-              {p.owed > 0.005 && (
-                settling === name ? (
-                  <span className="flex gap-1 items-center">
-                    <input className="border border-stone-400 w-20 px-1 py-0.5 tabular-nums"
-                      value={amt} onChange={(e) => setAmt(e.target.value)} inputMode="decimal" />
-                    <button className="bg-stone-900 text-stone-50 px-2 py-0.5 uppercase tracking-wider"
-                      onClick={() => {
-                        const a = parseFloat(amt);
-                        if (a > 0) { onSettle(name, Math.round(a * 100) / 100); setSettling(null); }
-                      }}>ok</button>
-                    <button className="underline" onClick={() => setSettling(null)}>cancel</button>
-                  </span>
-                ) : (
-                  <button className="bg-stone-900 text-stone-50 px-2 py-0.5 uppercase tracking-wider"
-                    onClick={() => { setSettling(name); setAmt(p.owed.toFixed(2)); }}>Settle up</button>
-                )
-              )}
-            </div>
-            {openHist === name && (
-              <ul className="mt-2 border-t border-stone-200 pt-2 space-y-1 text-xs text-stone-600 max-h-48 overflow-y-auto">
-                {p.history.map((h, i) => (
-                  <li key={i} className="flex justify-between gap-2">
-                    <span className="truncate">{h.date} · {h.desc}</span>
-                    <span className={`tabular-nums ${h.kind === "paid" ? "text-green-700" : ""}`}>
-                      {h.kind === "paid" ? "+" : ""}{fmt(h.amount)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: "space-y-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-3 gap-2 text-center"
+  }, /*#__PURE__*/React.createElement(Stat, {
+    label: "Owed to you",
+    value: fmt(owedTotal),
+    tone: "text-amber-700",
+    sub: `${entries.filter(([, p]) => p.owed > 0.005).length} unsettled`
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Paid back",
+    value: fmt(paidTotal),
+    tone: "text-green-700"
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Total split",
+    value: fmt(splitTotal),
+    tone: "text-stone-900",
+    sub: "all time"
+  })), entries.length === 0 && /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-stone-500 border border-dashed border-stone-300 p-4 text-center"
+  }, "No splits yet. Add a transaction with a split, or use the smart bar."), /*#__PURE__*/React.createElement("ul", {
+    className: "space-y-2"
+  }, entries.map(([name, p]) => /*#__PURE__*/React.createElement("li", {
+    key: name,
+    className: "border border-stone-300 bg-white p-3 text-sm"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-8 h-8 shrink-0 bg-stone-900 text-stone-50 flex items-center justify-center font-bold"
+  }, name[0].toUpperCase()), /*#__PURE__*/React.createElement("span", {
+    className: "flex-1"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "block font-bold"
+  }, name), /*#__PURE__*/React.createElement("span", {
+    className: "block text-[11px] text-stone-500"
+  }, "split ", fmt(p.split), " · paid ", fmt(p.paid))), /*#__PURE__*/React.createElement("span", {
+    className: `tabular-nums font-bold ${p.owed > 0.005 ? "text-amber-700" : "text-green-700"}`
+  }, fmt(p.owed))), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-3 mt-2 text-xs"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "underline",
+    onClick: () => setOpenHist(openHist === name ? null : name)
+  }, "history (", p.history.length, ")"), p.owed > 0.005 && (settling === name ? /*#__PURE__*/React.createElement("span", {
+    className: "flex gap-1 items-center"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: "border border-stone-400 w-20 px-1 py-0.5 tabular-nums",
+    value: amt,
+    onChange: e => setAmt(e.target.value),
+    inputMode: "decimal"
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "bg-stone-900 text-stone-50 px-2 py-0.5 uppercase tracking-wider",
+    onClick: () => {
+      const a = parseFloat(amt);
+      if (a > 0) {
+        onSettle(name, Math.round(a * 100) / 100);
+        setSettling(null);
+      }
+    }
+  }, "ok"), /*#__PURE__*/React.createElement("button", {
+    className: "underline",
+    onClick: () => setSettling(null)
+  }, "cancel")) : /*#__PURE__*/React.createElement("button", {
+    className: "bg-stone-900 text-stone-50 px-2 py-0.5 uppercase tracking-wider",
+    onClick: () => {
+      setSettling(name);
+      setAmt(p.owed.toFixed(2));
+    }
+  }, "Settle up"))), openHist === name && /*#__PURE__*/React.createElement("ul", {
+    className: "mt-2 border-t border-stone-200 pt-2 space-y-1 text-xs text-stone-600 max-h-48 overflow-y-auto"
+  }, p.history.map((h, i) => /*#__PURE__*/React.createElement("li", {
+    key: i,
+    className: "flex justify-between gap-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "truncate"
+  }, h.date, " · ", h.desc), /*#__PURE__*/React.createElement("span", {
+    className: `tabular-nums ${h.kind === "paid" ? "text-green-700" : ""}`
+  }, h.kind === "paid" ? "+" : "", fmt(h.amount)))))))));
 }
 
 // ── Insights ──────────────────────────────────────────────────
-function Insights({ data }) {
-  const exp = data.txns.filter((t) => t.type === "expense");
+function Insights({
+  data
+}) {
+  const exp = data.txns.filter(t => t.type === "expense");
   const month = ym(todayStr());
   const [selMonth, setSelMonth] = useState(month);
-
   const now = new Date();
   const daysElapsed = now.getDate();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const spentThis = exp.filter((t) => ym(t.date) === month).reduce((s, t) => s + t.amount, 0);
-  const projection = daysElapsed ? (spentThis / daysElapsed) * daysInMonth : 0;
-
+  const spentThis = exp.filter(t => ym(t.date) === month).reduce((s, t) => s + t.amount, 0);
+  const projection = daysElapsed ? spentThis / daysElapsed * daysInMonth : 0;
   const catTotals = {};
-  exp.forEach((t) => (catTotals[t.category] = (catTotals[t.category] || 0) + t.amount));
+  exp.forEach(t => catTotals[t.category] = (catTotals[t.category] || 0) + t.amount);
   const totalExp = Object.values(catTotals).reduce((s, v) => s + v, 0);
   const biggest = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0];
-
   const dayTotals = {};
-  exp.forEach((t) => {
-    const d = new Date(t.date + "T12:00:00").toLocaleString("en-US", { weekday: "short" });
-    dayTotals[d] = dayTotals[d] || { sum: 0, n: 0 };
-    dayTotals[d].sum += t.amount; dayTotals[d].n++;
+  exp.forEach(t => {
+    const d = new Date(t.date + "T12:00:00").toLocaleString("en-US", {
+      weekday: "short"
+    });
+    dayTotals[d] = dayTotals[d] || {
+      sum: 0,
+      n: 0
+    };
+    dayTotals[d].sum += t.amount;
+    dayTotals[d].n++;
   });
   const peak = Object.entries(dayTotals).sort((a, b) => b[1].sum / b[1].n - a[1].sum / a[1].n)[0];
-
-  const dates = [...new Set(exp.map((t) => t.date))];
+  const dates = [...new Set(exp.map(t => t.date))];
   const dailyAvg = dates.length ? totalExp / dates.length : 0;
   const largest = exp.slice().sort((a, b) => b.amount - a.amount)[0];
   const myShareAll = exp.reduce((s, t) => s + yourShare(t), 0);
   const friendsShare = totalExp - myShareAll;
-
   const gm = {};
-  exp.forEach((t) => {
+  exp.forEach(t => {
     const k = ym(t.date);
-    gm[k] = gm[k] || { month: k, gross: 0, share: 0 };
-    gm[k].gross += t.amount; gm[k].share += yourShare(t);
+    gm[k] = gm[k] || {
+      month: k,
+      gross: 0,
+      share: 0
+    };
+    gm[k].gross += t.amount;
+    gm[k].share += yourShare(t);
   });
-  const grossVsShare = Object.values(gm).sort((a, b) => (a.month < b.month ? -1 : 1)).slice(-6)
-    .map((r) => ({ ...r, label: monthLabel(r.month) }));
-
+  const grossVsShare = Object.values(gm).sort((a, b) => a.month < b.month ? -1 : 1).slice(-6).map(r => ({
+    ...r,
+    label: monthLabel(r.month)
+  }));
   const last14 = [...Array(14)].map((_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (13 - i));
+    const d = new Date();
+    d.setDate(d.getDate() - (13 - i));
     const key = d.toISOString().slice(0, 10);
     return {
-      label: d.toLocaleString("en-US", { month: "short", day: "numeric" }),
-      spent: exp.filter((t) => t.date === key).reduce((s, t) => s + t.amount, 0),
+      label: d.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric"
+      }),
+      spent: exp.filter(t => t.date === key).reduce((s, t) => s + t.amount, 0)
     };
   });
-
-  const mExp = exp.filter((t) => ym(t.date) === selMonth);
+  const mExp = exp.filter(t => ym(t.date) === selMonth);
   const mTotal = mExp.reduce((s, t) => s + t.amount, 0);
   const mShare = mExp.reduce((s, t) => s + yourShare(t), 0);
   const mCats = {};
-  mExp.forEach((t) => (mCats[t.category] = (mCats[t.category] || 0) + t.amount));
+  mExp.forEach(t => mCats[t.category] = (mCats[t.category] || 0) + t.amount);
   const mCatRows = Object.entries(mCats).sort((a, b) => b[1] - a[1]);
   const mMax = mCatRows.length ? mCatRows[0][1] : 0;
-  const shiftMonth = (d) => {
+  const shiftMonth = d => {
     const [y, mo] = selMonth.split("-").map(Number);
     const nd = new Date(y, mo - 1 + d, 1);
     setSelMonth(`${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, "0")}`);
   };
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
-        <Stat label="Monthly projection" value={fmt(projection)} sub="at current pace" />
-        <Stat label="Biggest category" value={biggest ? biggest[0] : "—"}
-          sub={biggest ? `${((biggest[1] / totalExp) * 100).toFixed(1)}% of spend` : ""} />
-        <Stat label="Peak day" value={peak ? peak[0] : "—"} sub={peak ? `${fmt(peak[1].sum / peak[1].n)} avg` : ""} />
-        <Stat label="Daily average" value={fmt(dailyAvg)} sub="on active days" />
-        <Stat label="Largest expense" value={largest ? fmt(largest.amount) : "—"}
-          sub={largest ? `${largest.desc} · ${largest.date}` : ""} />
-        <Stat label="Your share (all time)" value={fmt(myShareAll)}
-          sub={`${fmt(friendsShare)} owed back · ${totalExp ? ((friendsShare / totalExp) * 100).toFixed(0) : 0}% friends`} />
-      </div>
-
-      <Card title="Spending by month">
-        <div className="flex items-center justify-center gap-3 mb-2 text-sm">
-          <button className="px-2 border border-stone-400" onClick={() => shiftMonth(-1)}>‹</button>
-          <span className="font-bold tabular-nums">{selMonth}</span>
-          <button className="px-2 border border-stone-400" onClick={() => shiftMonth(1)}>›</button>
-        </div>
-        <div className="flex justify-between text-sm border-b border-stone-200 pb-1">
-          <span>Total charged</span><span className="tabular-nums">{fmt(mTotal)}</span>
-        </div>
-        <div className="flex justify-between text-sm text-red-700 py-1">
-          <span>Your share (after splits)</span><span className="tabular-nums">{fmt(mShare)}</span>
-        </div>
-        <div className="space-y-1 mt-2">
-          {mCatRows.map(([cat, v]) => (
-            <div key={cat} className="flex items-center gap-2 text-xs">
-              <span className="w-24 shrink-0 truncate">{cat}</span>
-              <span className="flex-1 h-3 bg-stone-200 relative">
-                <span className="absolute inset-y-0 left-0"
-                  style={{ width: `${(v / mMax) * 100}%`, background: CAT_COLORS[cat] || "#b8a98f" }} />
-              </span>
-              <span className="w-28 text-right tabular-nums">{fmt(v)} · {mTotal ? ((v / mTotal) * 100).toFixed(0) : 0}%</span>
-            </div>
-          ))}
-          {mCatRows.length === 0 && <p className="text-xs text-stone-500">No expenses this month.</p>}
-        </div>
-      </Card>
-
-      {grossVsShare.length > 0 && (
-        <Card title="Gross vs your share by month">
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={grossVsShare} margin={{ left: -15, right: 5 }}>
-              <CartesianGrid stroke="#e7e5e4" strokeDasharray="2 4" />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fontFamily: "monospace" }} />
-              <YAxis tick={{ fontSize: 10, fontFamily: "monospace" }} />
-              <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontFamily: "monospace", fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 11, fontFamily: "monospace" }} />
-              <Bar dataKey="gross" name="Total charged" fill="#d6a5a5" />
-              <Bar dataKey="share" name="Your share" fill="#44403c" />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-      )}
-
-      <Card title="Last 14 days">
-        <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={last14} margin={{ left: -15, right: 5 }}>
-            <XAxis dataKey="label" tick={{ fontSize: 9, fontFamily: "monospace" }} interval={1} />
-            <YAxis tick={{ fontSize: 10, fontFamily: "monospace" }} />
-            <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontFamily: "monospace", fontSize: 12 }} />
-            <Bar dataKey="spent" fill="#b91c1c" />
-          </BarChart>
-        </ResponsiveContainer>
-      </Card>
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: "space-y-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 gap-2"
+  }, /*#__PURE__*/React.createElement(Stat, {
+    label: "Monthly projection",
+    value: fmt(projection),
+    sub: "at current pace"
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Biggest category",
+    value: biggest ? biggest[0] : "—",
+    sub: biggest ? `${(biggest[1] / totalExp * 100).toFixed(1)}% of spend` : ""
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Peak day",
+    value: peak ? peak[0] : "—",
+    sub: peak ? `${fmt(peak[1].sum / peak[1].n)} avg` : ""
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Daily average",
+    value: fmt(dailyAvg),
+    sub: "on active days"
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Largest expense",
+    value: largest ? fmt(largest.amount) : "—",
+    sub: largest ? `${largest.desc} · ${largest.date}` : ""
+  }), /*#__PURE__*/React.createElement(Stat, {
+    label: "Your share (all time)",
+    value: fmt(myShareAll),
+    sub: `${fmt(friendsShare)} owed back · ${totalExp ? (friendsShare / totalExp * 100).toFixed(0) : 0}% friends`
+  })), /*#__PURE__*/React.createElement(Card, {
+    title: "Spending by month"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-center gap-3 mb-2 text-sm"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "px-2 border border-stone-400",
+    onClick: () => shiftMonth(-1)
+  }, "‹"), /*#__PURE__*/React.createElement("span", {
+    className: "font-bold tabular-nums"
+  }, selMonth), /*#__PURE__*/React.createElement("button", {
+    className: "px-2 border border-stone-400",
+    onClick: () => shiftMonth(1)
+  }, "›")), /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between text-sm border-b border-stone-200 pb-1"
+  }, /*#__PURE__*/React.createElement("span", null, "Total charged"), /*#__PURE__*/React.createElement("span", {
+    className: "tabular-nums"
+  }, fmt(mTotal))), /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between text-sm text-red-700 py-1"
+  }, /*#__PURE__*/React.createElement("span", null, "Your share (after splits)"), /*#__PURE__*/React.createElement("span", {
+    className: "tabular-nums"
+  }, fmt(mShare))), /*#__PURE__*/React.createElement("div", {
+    className: "space-y-1 mt-2"
+  }, mCatRows.map(([cat, v]) => /*#__PURE__*/React.createElement("div", {
+    key: cat,
+    className: "flex items-center gap-2 text-xs"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-24 shrink-0 truncate"
+  }, cat), /*#__PURE__*/React.createElement("span", {
+    className: "flex-1 h-3 bg-stone-200 relative"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "absolute inset-y-0 left-0",
+    style: {
+      width: `${v / mMax * 100}%`,
+      background: CAT_COLORS[cat] || "#b8a98f"
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "w-28 text-right tabular-nums"
+  }, fmt(v), " · ", mTotal ? (v / mTotal * 100).toFixed(0) : 0, "%"))), mCatRows.length === 0 && /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-stone-500"
+  }, "No expenses this month."))), grossVsShare.length > 0 && /*#__PURE__*/React.createElement(Card, {
+    title: "Gross vs your share by month"
+  }, /*#__PURE__*/React.createElement(ResponsiveContainer, {
+    width: "100%",
+    height: 200
+  }, /*#__PURE__*/React.createElement(BarChart, {
+    data: grossVsShare,
+    margin: {
+      left: -15,
+      right: 5
+    }
+  }, /*#__PURE__*/React.createElement(CartesianGrid, {
+    stroke: "#e7e5e4",
+    strokeDasharray: "2 4"
+  }), /*#__PURE__*/React.createElement(XAxis, {
+    dataKey: "label",
+    tick: {
+      fontSize: 10,
+      fontFamily: "monospace"
+    }
+  }), /*#__PURE__*/React.createElement(YAxis, {
+    tick: {
+      fontSize: 10,
+      fontFamily: "monospace"
+    }
+  }), /*#__PURE__*/React.createElement(Tooltip, {
+    formatter: v => fmt(v),
+    contentStyle: {
+      fontFamily: "monospace",
+      fontSize: 12
+    }
+  }), /*#__PURE__*/React.createElement(Legend, {
+    wrapperStyle: {
+      fontSize: 11,
+      fontFamily: "monospace"
+    }
+  }), /*#__PURE__*/React.createElement(Bar, {
+    dataKey: "gross",
+    name: "Total charged",
+    fill: "#d6a5a5"
+  }), /*#__PURE__*/React.createElement(Bar, {
+    dataKey: "share",
+    name: "Your share",
+    fill: "#44403c"
+  })))), /*#__PURE__*/React.createElement(Card, {
+    title: "Last 14 days"
+  }, /*#__PURE__*/React.createElement(ResponsiveContainer, {
+    width: "100%",
+    height: 160
+  }, /*#__PURE__*/React.createElement(BarChart, {
+    data: last14,
+    margin: {
+      left: -15,
+      right: 5
+    }
+  }, /*#__PURE__*/React.createElement(XAxis, {
+    dataKey: "label",
+    tick: {
+      fontSize: 9,
+      fontFamily: "monospace"
+    },
+    interval: 1
+  }), /*#__PURE__*/React.createElement(YAxis, {
+    tick: {
+      fontSize: 10,
+      fontFamily: "monospace"
+    }
+  }), /*#__PURE__*/React.createElement(Tooltip, {
+    formatter: v => fmt(v),
+    contentStyle: {
+      fontFamily: "monospace",
+      fontSize: 12
+    }
+  }), /*#__PURE__*/React.createElement(Bar, {
+    dataKey: "spent",
+    fill: "#b91c1c"
+  })))));
 }
 
 // ── Data import/export + settings ─────────────────────────────
-function DataIO({ data, persist, onReconfigure }) {
+function DataIO({
+  data,
+  persist,
+  onReconfigure
+}) {
   const [paste, setPaste] = useState("");
   const [msg, setMsg] = useState("");
-
   const doImport = () => {
     try {
-      let rows, importedSettlements = [];
+      let rows,
+        importedSettlements = [];
       const txt = paste.trim();
       if (txt.startsWith("[") || txt.startsWith("{")) {
         const j = JSON.parse(txt);
         rows = Array.isArray(j) ? j : j.txns || [];
-        importedSettlements = (Array.isArray(j) ? [] : j.settlements || [])
-          .filter((s) => s.person && s.amount > 0)
-          .map((s) => ({
-            id: uid(), person: s.person.trim(),
-            amount: Math.round(s.amount * 100) / 100,
-            date: /^\d{4}-\d{2}-\d{2}$/.test(s.date || "") ? s.date : todayStr(),
-          }));
-      } else {
-        rows = txt.split("\n").map((l) => l.split(",")).filter((c) => c.length >= 3)
-          .filter((c) => !/^date$/i.test(c[0].trim()))
-          .map((c) => ({
-            date: c[0].trim(), desc: c[1].trim(), amount: parseFloat(c[2]),
-            category: (c[3] || "Other").trim(), type: (c[4] || "expense").trim(),
-          }));
-      }
-      const clean = rows
-        .filter((r) => r.desc && r.amount > 0)
-        .map((r) => ({
-          id: uid(), type: r.type === "income" ? "income" : "expense",
-          desc: r.desc, amount: Math.round(r.amount * 100) / 100,
-          category: titleCase(r.category),
-          date: /^\d{4}-\d{2}-\d{2}$/.test(r.date || "") ? r.date : todayStr(),
-          vendor: r.vendor || "", notes: r.notes || "",
-          splits: (r.splits || []).map((s) => ({ name: s.name, share: +s.share })),
+        importedSettlements = (Array.isArray(j) ? [] : j.settlements || []).filter(s => s.person && s.amount > 0).map(s => ({
+          id: uid(),
+          person: s.person.trim(),
+          amount: Math.round(s.amount * 100) / 100,
+          date: /^\d{4}-\d{2}-\d{2}$/.test(s.date || "") ? s.date : todayStr()
         }));
+      } else {
+        rows = txt.split("\n").map(l => l.split(",")).filter(c => c.length >= 3).filter(c => !/^date$/i.test(c[0].trim())).map(c => ({
+          date: c[0].trim(),
+          desc: c[1].trim(),
+          amount: parseFloat(c[2]),
+          category: (c[3] || "Other").trim(),
+          type: (c[4] || "expense").trim()
+        }));
+      }
+      const clean = rows.filter(r => r.desc && r.amount > 0).map(r => ({
+        id: uid(),
+        type: r.type === "income" ? "income" : "expense",
+        desc: r.desc,
+        amount: Math.round(r.amount * 100) / 100,
+        category: titleCase(r.category),
+        date: /^\d{4}-\d{2}-\d{2}$/.test(r.date || "") ? r.date : todayStr(),
+        vendor: r.vendor || "",
+        notes: r.notes || "",
+        splits: (r.splits || []).map(s => ({
+          name: s.name,
+          share: +s.share
+        }))
+      }));
       if (!clean.length && !importedSettlements.length) throw new Error("no rows");
       persist({
         ...data,
         txns: [...clean, ...data.txns],
-        settlements: [...importedSettlements, ...data.settlements],
+        settlements: [...importedSettlements, ...data.settlements]
       });
       setPaste("");
       setMsg(`Imported ${clean.length} transactions${importedSettlements.length ? ` + ${importedSettlements.length} settlements` : ""}.`);
@@ -971,178 +1312,255 @@ function DataIO({ data, persist, onReconfigure }) {
       setMsg("Couldn't parse. Use JSON array or CSV: date,description,amount,category,type");
     }
   };
-
   const clearAll = () => {
     if (window.confirm("Delete ALL transactions and settlements? The repo keeps history, but the app will start empty.")) {
-      persist({ txns: [], settlements: [] });
+      persist({
+        txns: [],
+        settlements: []
+      });
       setMsg("Cleared.");
     }
   };
-
-  return (
-    <div className="space-y-4">
-      <Card title="Import transactions">
-        <p className="text-xs text-stone-600 mb-2">
-          Paste a JSON object ({"{"}txns, settlements{"}"}), a JSON array, or CSV rows:
-          date,description,amount,category,type
-        </p>
-        <textarea
-          className="w-full h-40 border border-stone-400 bg-stone-50 p-2 text-xs focus:outline-none focus:border-stone-900"
-          value={paste} onChange={(e) => setPaste(e.target.value)}
-          placeholder='2026-06-01,Caffe Macs,12.00,Dining,expense' />
-        <button onClick={doImport} className="mt-2 bg-stone-900 text-stone-50 text-xs uppercase tracking-widest px-4 py-1.5">
-          Import
-        </button>
-        {msg && <p className="text-xs mt-2 text-stone-600">{msg}</p>}
-      </Card>
-      <Card title="Export / backup">
-        <p className="text-xs text-stone-600 mb-2">
-          {data.txns.length} transactions · {data.settlements.length} settlements. Also versioned in your GitHub repo on every save.
-        </p>
-        <textarea readOnly className="w-full h-32 border border-stone-300 bg-stone-50 p-2 text-[10px]"
-          value={JSON.stringify(data)} onFocus={(e) => e.target.select()} />
-      </Card>
-      <Card title="Settings">
-        <div className="flex gap-3 text-xs">
-          <button className="underline" onClick={onReconfigure}>Edit GitHub / API keys</button>
-          <button className="underline text-red-700" onClick={clearAll}>Clear all data</button>
-        </div>
-      </Card>
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: "space-y-4"
+  }, /*#__PURE__*/React.createElement(Card, {
+    title: "Import transactions"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-stone-600 mb-2"
+  }, "Paste a JSON object (", "{", "txns, settlements", "}", "), a JSON array, or CSV rows: date,description,amount,category,type"), /*#__PURE__*/React.createElement("textarea", {
+    className: "w-full h-40 border border-stone-400 bg-stone-50 p-2 text-xs focus:outline-none focus:border-stone-900",
+    value: paste,
+    onChange: e => setPaste(e.target.value),
+    placeholder: "2026-06-01,Caffe Macs,12.00,Dining,expense"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: doImport,
+    className: "mt-2 bg-stone-900 text-stone-50 text-xs uppercase tracking-widest px-4 py-1.5"
+  }, "Import"), msg && /*#__PURE__*/React.createElement("p", {
+    className: "text-xs mt-2 text-stone-600"
+  }, msg)), /*#__PURE__*/React.createElement(Card, {
+    title: "Export / backup"
+  }, /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-stone-600 mb-2"
+  }, data.txns.length, " transactions · ", data.settlements.length, " settlements. Also versioned in your GitHub repo on every save."), /*#__PURE__*/React.createElement("textarea", {
+    readOnly: true,
+    className: "w-full h-32 border border-stone-300 bg-stone-50 p-2 text-[10px]",
+    value: JSON.stringify(data),
+    onFocus: e => e.target.select()
+  })), /*#__PURE__*/React.createElement(Card, {
+    title: "Settings"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-3 text-xs"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "underline",
+    onClick: onReconfigure
+  }, "Edit GitHub / API keys"), /*#__PURE__*/React.createElement("button", {
+    className: "underline text-red-700",
+    onClick: clearAll
+  }, "Clear all data"))));
 }
 
 // ── Add/Edit modal ────────────────────────────────────────────
-function AddModal({ initial, knownNames, onClose, onSave }) {
-  const [t, setT] = useState(
-    initial || {
-      type: "expense", desc: "", amount: "", category: "Dining",
-      date: todayStr(), vendor: "", notes: "", splits: [],
-    }
-  );
-  const set = (k, v) => setT((p) => ({ ...p, [k]: v }));
+function AddModal({
+  initial,
+  knownNames,
+  onClose,
+  onSave
+}) {
+  const [t, setT] = useState(initial || {
+    type: "expense",
+    desc: "",
+    amount: "",
+    category: "Dining",
+    date: todayStr(),
+    vendor: "",
+    notes: "",
+    splits: []
+  });
+  const set = (k, v) => setT(p => ({
+    ...p,
+    [k]: v
+  }));
   const amt = parseFloat(t.amount) || 0;
   const splitSum = (t.splits || []).reduce((s, p) => s + (parseFloat(p.share) || 0), 0);
   const myShare = Math.round((amt - splitSum) * 100) / 100;
-
   const save = () => {
     if (!t.desc.trim() || !(amt > 0)) return;
     onSave({
-      ...t, desc: t.desc.trim(), amount: Math.round(amt * 100) / 100,
-      splits: (t.splits || [])
-        .filter((s) => s.name.trim() && parseFloat(s.share) > 0)
-        .map((s) => ({ name: s.name.trim(), share: Math.round(parseFloat(s.share) * 100) / 100 })),
+      ...t,
+      desc: t.desc.trim(),
+      amount: Math.round(amt * 100) / 100,
+      splits: (t.splits || []).filter(s => s.name.trim() && parseFloat(s.share) > 0).map(s => ({
+        name: s.name.trim(),
+        share: Math.round(parseFloat(s.share) * 100) / 100
+      }))
     });
   };
-
   const equalize = () => {
     if (!amt || !t.splits.length) return;
-    const per = Math.round((amt / (t.splits.length + 1)) * 100) / 100;
-    set("splits", t.splits.map((s) => ({ ...s, share: per })));
+    const per = Math.round(amt / (t.splits.length + 1) * 100) / 100;
+    set("splits", t.splits.map(s => ({
+      ...s,
+      share: per
+    })));
   };
-
-  return (
-    <div className="fixed inset-0 bg-stone-900/60 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
-      <div className="bg-stone-50 w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 font-mono border-t-4 border-stone-900"
-        onClick={(e) => e.stopPropagation()}>
-        <h2 className="font-bold uppercase tracking-widest mb-3">{initial ? "Edit" : "Add"} transaction</h2>
-        <div className="flex gap-1 mb-3 text-xs">
-          {["expense", "income"].map((k) => (
-            <Chip key={k} active={t.type === k} onClick={() => set("type", k)}>{k}</Chip>
-          ))}
-        </div>
-        <Field label="Description">
-          <input className={inp} value={t.desc} onChange={(e) => set("desc", e.target.value)} />
-        </Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Amount (total)">
-            <input className={inp + " tabular-nums"} inputMode="decimal" value={t.amount} onChange={(e) => set("amount", e.target.value)} />
-          </Field>
-          <Field label="Date">
-            <input type="date" className={inp} value={t.date} onChange={(e) => set("date", e.target.value)} />
-          </Field>
-        </div>
-        <Field label="Category">
-          <select className={inp} value={t.category} onChange={(e) => set("category", e.target.value)}>
-            {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-          </select>
-        </Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Vendor (optional)">
-            <input className={inp} value={t.vendor} onChange={(e) => set("vendor", e.target.value)} />
-          </Field>
-          <Field label="Notes (optional)">
-            <input className={inp} value={t.notes} onChange={(e) => set("notes", e.target.value)} />
-          </Field>
-        </div>
-
-        {t.type === "expense" && (
-          <div className="mt-2 border-t border-stone-300 pt-2">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs uppercase tracking-wider text-stone-500">Split — who owes you</span>
-              {t.splits.length > 0 && (
-                <button className="text-xs underline" onClick={equalize}>equal split</button>
-              )}
-            </div>
-            {(t.splits || []).map((s, i) => (
-              <div key={i} className="flex gap-1 mb-1">
-                <input className={inp + " flex-1"} placeholder="Name" list="names" value={s.name}
-                  onChange={(e) => set("splits", t.splits.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
-                <input className={inp + " w-24 tabular-nums"} placeholder="Owes" inputMode="decimal" value={s.share}
-                  onChange={(e) => set("splits", t.splits.map((x, j) => (j === i ? { ...x, share: e.target.value } : x)))} />
-                <button className="px-2 border border-stone-400" onClick={() => set("splits", t.splits.filter((_, j) => j !== i))}>×</button>
-              </div>
-            ))}
-            <datalist id="names">{knownNames.map((n) => <option key={n} value={n} />)}</datalist>
-            <button className="text-xs underline" onClick={() => set("splits", [...(t.splits || []), { name: "", share: "" }])}>
-              + add person
-            </button>
-            <div className="flex justify-between text-sm mt-2 border-t border-stone-200 pt-1">
-              <span>Your share</span>
-              <span className={`tabular-nums ${myShare < 0 ? "text-red-700" : ""}`}>{fmt(myShare)}</span>
-            </div>
-          </div>
-        )}
-
-        <div className="flex gap-2 mt-4">
-          <button onClick={onClose} className="flex-1 border border-stone-400 py-2 text-xs uppercase tracking-widest">Cancel</button>
-          <button onClick={save} className="flex-1 bg-stone-900 text-stone-50 py-2 text-xs uppercase tracking-widest">Save</button>
-        </div>
-      </div>
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: "fixed inset-0 bg-stone-900/60 z-50 flex items-end sm:items-center justify-center",
+    onClick: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bg-stone-50 w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 font-mono border-t-4 border-stone-900",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: "font-bold uppercase tracking-widest mb-3"
+  }, initial ? "Edit" : "Add", " transaction"), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-1 mb-3 text-xs"
+  }, ["expense", "income"].map(k => /*#__PURE__*/React.createElement(Chip, {
+    key: k,
+    active: t.type === k,
+    onClick: () => set("type", k)
+  }, k))), /*#__PURE__*/React.createElement(Field, {
+    label: "Description"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: inp,
+    value: t.desc,
+    onChange: e => set("desc", e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 gap-2"
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Amount (total)"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: inp + " tabular-nums",
+    inputMode: "decimal",
+    value: t.amount,
+    onChange: e => set("amount", e.target.value)
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Date"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    className: inp,
+    value: t.date,
+    onChange: e => set("date", e.target.value)
+  }))), /*#__PURE__*/React.createElement(Field, {
+    label: "Category"
+  }, /*#__PURE__*/React.createElement("select", {
+    className: inp,
+    value: t.category,
+    onChange: e => set("category", e.target.value)
+  }, CATEGORIES.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c
+  }, c)))), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 gap-2"
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Vendor (optional)"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: inp,
+    value: t.vendor,
+    onChange: e => set("vendor", e.target.value)
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Notes (optional)"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: inp,
+    value: t.notes,
+    onChange: e => set("notes", e.target.value)
+  }))), t.type === "expense" && /*#__PURE__*/React.createElement("div", {
+    className: "mt-2 border-t border-stone-300 pt-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between mb-1"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-xs uppercase tracking-wider text-stone-500"
+  }, "Split — who owes you"), t.splits.length > 0 && /*#__PURE__*/React.createElement("button", {
+    className: "text-xs underline",
+    onClick: equalize
+  }, "equal split")), (t.splits || []).map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "flex gap-1 mb-1"
+  }, /*#__PURE__*/React.createElement("input", {
+    className: inp + " flex-1",
+    placeholder: "Name",
+    list: "names",
+    value: s.name,
+    onChange: e => set("splits", t.splits.map((x, j) => j === i ? {
+      ...x,
+      name: e.target.value
+    } : x))
+  }), /*#__PURE__*/React.createElement("input", {
+    className: inp + " w-24 tabular-nums",
+    placeholder: "Owes",
+    inputMode: "decimal",
+    value: s.share,
+    onChange: e => set("splits", t.splits.map((x, j) => j === i ? {
+      ...x,
+      share: e.target.value
+    } : x))
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "px-2 border border-stone-400",
+    onClick: () => set("splits", t.splits.filter((_, j) => j !== i))
+  }, "×"))), /*#__PURE__*/React.createElement("datalist", {
+    id: "names"
+  }, knownNames.map(n => /*#__PURE__*/React.createElement("option", {
+    key: n,
+    value: n
+  }))), /*#__PURE__*/React.createElement("button", {
+    className: "text-xs underline",
+    onClick: () => set("splits", [...(t.splits || []), {
+      name: "",
+      share: ""
+    }])
+  }, "+ add person"), /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between text-sm mt-2 border-t border-stone-200 pt-1"
+  }, /*#__PURE__*/React.createElement("span", null, "Your share"), /*#__PURE__*/React.createElement("span", {
+    className: `tabular-nums ${myShare < 0 ? "text-red-700" : ""}`
+  }, fmt(myShare)))), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 mt-4"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    className: "flex-1 border border-stone-400 py-2 text-xs uppercase tracking-widest"
+  }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+    onClick: save,
+    className: "flex-1 bg-stone-900 text-stone-50 py-2 text-xs uppercase tracking-widest"
+  }, "Save"))));
 }
 
 // ── tiny shared components ────────────────────────────────────
 const inp = "w-full border border-stone-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:border-stone-900";
-const Field = ({ label, children }) => (
-  <label className="block mb-2">
-    <span className="text-[11px] uppercase tracking-wider text-stone-500">{label}</span>
-    {children}
-  </label>
-);
-const Stat = ({ label, value, sub, tone = "" }) => (
-  <div className="border border-stone-300 bg-white p-2">
-    <div className="text-[10px] uppercase tracking-wider text-stone-500">{label}</div>
-    <div className={`text-base font-bold tabular-nums truncate ${tone}`}>{value}</div>
-    {sub && <div className="text-[10px] text-stone-500 truncate">{sub}</div>}
-  </div>
-);
-const Card = ({ title, children }) => (
-  <section className="border border-stone-300 bg-white p-3">
-    <h2 className="text-xs uppercase tracking-wider text-stone-500 mb-2">{title}</h2>
-    {children}
-  </section>
-);
-const Chip = ({ active, onClick, children }) => (
-  <button onClick={onClick}
-    className={`px-3 py-1 border text-xs uppercase tracking-wider ${
-      active ? "bg-stone-900 text-stone-50 border-stone-900" : "border-stone-400 text-stone-600"}`}>
-    {children}
-  </button>
-);
-
-ReactDOM.createRoot(document.getElementById("root")).render(<Rizzpenses />);
+const Field = ({
+  label,
+  children
+}) => /*#__PURE__*/React.createElement("label", {
+  className: "block mb-2"
+}, /*#__PURE__*/React.createElement("span", {
+  className: "text-[11px] uppercase tracking-wider text-stone-500"
+}, label), children);
+const Stat = ({
+  label,
+  value,
+  sub,
+  tone = ""
+}) => /*#__PURE__*/React.createElement("div", {
+  className: "border border-stone-300 bg-white p-2"
+}, /*#__PURE__*/React.createElement("div", {
+  className: "text-[10px] uppercase tracking-wider text-stone-500"
+}, label), /*#__PURE__*/React.createElement("div", {
+  className: `text-base font-bold tabular-nums truncate ${tone}`
+}, value), sub && /*#__PURE__*/React.createElement("div", {
+  className: "text-[10px] text-stone-500 truncate"
+}, sub));
+const Card = ({
+  title,
+  children
+}) => /*#__PURE__*/React.createElement("section", {
+  className: "border border-stone-300 bg-white p-3"
+}, /*#__PURE__*/React.createElement("h2", {
+  className: "text-xs uppercase tracking-wider text-stone-500 mb-2"
+}, title), children);
+const Chip = ({
+  active,
+  onClick,
+  children
+}) => /*#__PURE__*/React.createElement("button", {
+  onClick: onClick,
+  className: `px-3 py-1 border text-xs uppercase tracking-wider ${active ? "bg-stone-900 text-stone-50 border-stone-900" : "border-stone-400 text-stone-600"}`
+}, children);
+ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(Rizzpenses, null));
 </script>
 </body>
 </html>
